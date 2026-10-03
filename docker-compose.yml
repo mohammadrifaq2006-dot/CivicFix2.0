@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  database:
+    image: mysql:8.0
+    container_name: civicroad-mysql
+    restart: always
+    environment:
+      MYSQL_DATABASE: civicroad_db
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/init.sql
+
+  ai-service:
+    build: ./ai-service
+    container_name: civicroad-ai-service
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+
+  backend:
+    build: ./backend
+    container_name: civicroad-backend
+    restart: always
+    depends_on:
+      - database
+      - ai-service
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://database:3306/civicroad_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      CIVICROAD_AI_SERVICE_URL: http://ai-service:5000
+
+  frontend:
+    build: ./frontend
+    container_name: civicroad-frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
+volumes:
+  mysql_data:
